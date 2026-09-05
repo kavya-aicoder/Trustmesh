@@ -1,48 +1,91 @@
 import { expect } from "chai";
-import hre from "hardhat";
+import { network } from "hardhat";
 import { ethers } from "ethers";
 
 describe("PolicyEngine", function () {
   let policyEngine: any;
+  let auditLogger: any;
+
   let owner: any;
   let manager: any;
   let user: any;
   let outsider: any;
 
   const role = (name: string) =>
-    ethers.keccak256(ethers.toUtf8Bytes(name));
+    ethers.keccak256(
+      ethers.toUtf8Bytes(name)
+    );
 
   const resource = (name: string) =>
-    ethers.keccak256(ethers.toUtf8Bytes(name));
+    ethers.keccak256(
+      ethers.toUtf8Bytes(name)
+    );
 
   const action = (name: string) =>
-    ethers.keccak256(ethers.toUtf8Bytes(name));
+    ethers.keccak256(
+      ethers.toUtf8Bytes(name)
+    );
 
-  const MANAGER = role("MANAGER");
-  const USER = role("USER");
+  const MANAGER =
+    role("MANAGER");
 
-  const DOCUMENT = resource("DOCUMENT");
+  const USER =
+    role("USER");
 
-  const READ = action("READ");
-  const WRITE = action("WRITE");
-  const DELETE = action("DELETE");
+  const DOCUMENT =
+    resource("DOCUMENT");
+
+  const READ =
+    action("READ");
+
+  const WRITE =
+    action("WRITE");
+
+  const DELETE =
+    action("DELETE");
 
   beforeEach(async function () {
-    const connection = await hre.network.connect();
+    const connection =
+      await network.connect();
 
-    const signers = await connection.ethers.getSigners();
+    const signers =
+      await connection.ethers.getSigners();
 
-    [owner, manager, user, outsider] = signers;
+    [
+      owner,
+      manager,
+      user,
+      outsider
+    ] = signers;
 
+    // Deploy AuditLogger first
+    const AuditLogger =
+      await connection.ethers.getContractFactory(
+        "AuditLogger"
+      );
+
+    auditLogger =
+      await AuditLogger.deploy();
+
+    await auditLogger.waitForDeployment();
+
+    // Deploy PolicyEngine with AuditLogger
     const PolicyEngine =
       await connection.ethers.getContractFactory(
         "PolicyEngine"
       );
 
     policyEngine =
-      await PolicyEngine.deploy();
+      await PolicyEngine.deploy(
+        await auditLogger.getAddress()
+      );
 
     await policyEngine.waitForDeployment();
+
+    // Authorize PolicyEngine to write audit records
+    await auditLogger.authorizeLogger(
+      await policyEngine.getAddress()
+    );
   });
 
   it("creates organization-defined roles", async function () {
@@ -52,14 +95,27 @@ describe("PolicyEngine", function () {
         "Manager"
       )
     )
-      .to.emit(policyEngine, "RoleCreated")
-      .withArgs(MANAGER, "Manager");
+      .to.emit(
+        policyEngine,
+        "RoleCreated"
+      )
+      .withArgs(
+        MANAGER,
+        "Manager"
+      );
 
     const result =
-      await policyEngine.getRole(MANAGER);
+      await policyEngine.getRole(
+        MANAGER
+      );
 
-    expect(result[0]).to.equal(true);
-    expect(result[1]).to.equal("Manager");
+    expect(
+      result[0]
+    ).to.equal(true);
+
+    expect(
+      result[1]
+    ).to.equal("Manager");
   });
 
   it("rejects duplicate roles", async function () {
@@ -91,7 +147,10 @@ describe("PolicyEngine", function () {
         MANAGER
       )
     )
-      .to.emit(policyEngine, "RoleAssigned")
+      .to.emit(
+        policyEngine,
+        "RoleAssigned"
+      )
       .withArgs(
         await manager.getAddress(),
         MANAGER
@@ -367,7 +426,9 @@ describe("PolicyEngine", function () {
       await policyEngine.getUserRole(
         await manager.getAddress()
       )
-    ).to.equal(ethers.ZeroHash);
+    ).to.equal(
+      ethers.ZeroHash
+    );
 
     expect(
       await policyEngine.hasPermission(

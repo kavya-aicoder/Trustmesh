@@ -5,16 +5,45 @@ describe("DIDRegistry", function () {
   async function deployFixture() {
     const { ethers } = await network.connect();
 
-    const [controller, attacker, newController, newKey] =
-      await ethers.getSigners();
+    const [
+      controller,
+      attacker,
+      newController,
+      newKey
+    ] = await ethers.getSigners();
 
-    const Factory = await ethers.getContractFactory("DIDRegistry");
-    const registry = await Factory.deploy();
+    // Deploy AuditLogger first
+    const AuditLogger =
+      await ethers.getContractFactory(
+        "AuditLogger"
+      );
+
+    const auditLogger =
+      await AuditLogger.deploy();
+
+    await auditLogger.waitForDeployment();
+
+    // Deploy DIDRegistry with AuditLogger
+    const DIDRegistry =
+      await ethers.getContractFactory(
+        "DIDRegistry"
+      );
+
+    const registry =
+      await DIDRegistry.deploy(
+        await auditLogger.getAddress()
+      );
 
     await registry.waitForDeployment();
 
+    // Authorize DIDRegistry to write audit records
+    await auditLogger.authorizeLogger(
+      await registry.getAddress()
+    );
+
     return {
       registry,
+      auditLogger,
       controller,
       attacker,
       newController,
@@ -23,28 +52,61 @@ describe("DIDRegistry", function () {
     };
   }
 
-  const did = "did:trustmesh:demo-user-001";
-  const documentReference = "ipfs://bafybeigdyr-doc-001";
+  const did =
+    "did:trustmesh:demo-user-001";
+
+  const documentReference =
+    "ipfs://bafybeigdyr-doc-001";
 
   it("creates and resolves a DID", async function () {
-    const { registry, controller } = await deployFixture();
+    const {
+      registry,
+      controller
+    } = await deployFixture();
 
-    const key = controller.address;
+    const key =
+      controller.address;
 
     await expect(
-      registry.createDID(did, documentReference, key)
-    ).to.emit(registry, "DIDCreated");
+      registry.createDID(
+        did,
+        documentReference,
+        key
+      )
+    ).to.emit(
+      registry,
+      "DIDCreated"
+    );
 
-    const resolved = await registry.resolveDID(did);
+    const resolved =
+      await registry.resolveDID(did);
 
-    expect(resolved.documentReference).to.equal(documentReference);
-    expect(resolved.controller).to.equal(controller.address);
-    expect(resolved.verificationKey).to.equal(key);
-    expect(resolved.status).to.equal(1);
+    expect(
+      resolved.documentReference
+    ).to.equal(
+      documentReference
+    );
+
+    expect(
+      resolved.controller
+    ).to.equal(
+      controller.address
+    );
+
+    expect(
+      resolved.verificationKey
+    ).to.equal(key);
+
+    expect(
+      resolved.status
+    ).to.equal(1);
   });
 
   it("rejects duplicate DIDs", async function () {
-    const { registry, controller } = await deployFixture();
+    const {
+      registry,
+      controller
+    } = await deployFixture();
 
     await registry.createDID(
       did,
@@ -65,8 +127,11 @@ describe("DIDRegistry", function () {
   });
 
   it("rejects invalid creation input", async function () {
-    const { registry, controller, ethers } =
-      await deployFixture();
+    const {
+      registry,
+      controller,
+      ethers
+    } = await deployFixture();
 
     await expect(
       registry.createDID(
@@ -103,8 +168,12 @@ describe("DIDRegistry", function () {
   });
 
   it("allows the controller to rotate the verification key", async function () {
-    const { registry, controller, newKey, ethers } =
-      await deployFixture();
+    const {
+      registry,
+      controller,
+      newKey,
+      ethers
+    } = await deployFixture();
 
     await registry.createDID(
       did,
@@ -113,25 +182,40 @@ describe("DIDRegistry", function () {
     );
 
     await expect(
-      registry.rotateKey(did, newKey.address)
+      registry.rotateKey(
+        did,
+        newKey.address
+      )
     )
-      .to.emit(registry, "KeyRotated")
+      .to.emit(
+        registry,
+        "KeyRotated"
+      )
       .withArgs(
-        ethers.keccak256(ethers.toUtf8Bytes(did)),
+        ethers.keccak256(
+          ethers.toUtf8Bytes(did)
+        ),
         controller.address,
         newKey.address
       );
 
-    const resolved = await registry.resolveDID(did);
+    const resolved =
+      await registry.resolveDID(did);
 
-    expect(resolved.verificationKey).to.equal(
+    expect(
+      resolved.verificationKey
+    ).to.equal(
       newKey.address
     );
   });
 
   it("blocks unauthorized key rotation", async function () {
-    const { registry, controller, attacker, newKey } =
-      await deployFixture();
+    const {
+      registry,
+      controller,
+      attacker,
+      newKey
+    } = await deployFixture();
 
     await registry.createDID(
       did,
@@ -142,7 +226,10 @@ describe("DIDRegistry", function () {
     await expect(
       registry
         .connect(attacker)
-        .rotateKey(did, newKey.address)
+        .rotateKey(
+          did,
+          newKey.address
+        )
     ).to.be.revertedWithCustomError(
       registry,
       "NotController"
@@ -150,8 +237,11 @@ describe("DIDRegistry", function () {
   });
 
   it("allows the controller to update the document reference", async function () {
-    const { registry, controller, ethers } =
-      await deployFixture();
+    const {
+      registry,
+      controller,
+      ethers
+    } = await deployFixture();
 
     await registry.createDID(
       did,
@@ -168,15 +258,23 @@ describe("DIDRegistry", function () {
         newReference
       )
     )
-      .to.emit(registry, "DIDDocumentUpdated")
+      .to.emit(
+        registry,
+        "DIDDocumentUpdated"
+      )
       .withArgs(
-        ethers.keccak256(ethers.toUtf8Bytes(did)),
+        ethers.keccak256(
+          ethers.toUtf8Bytes(did)
+        ),
         newReference
       );
 
-    const resolved = await registry.resolveDID(did);
+    const resolved =
+      await registry.resolveDID(did);
 
-    expect(resolved.documentReference).to.equal(
+    expect(
+      resolved.documentReference
+    ).to.equal(
       newReference
     );
   });
@@ -186,6 +284,7 @@ describe("DIDRegistry", function () {
       registry,
       controller,
       newController,
+      ethers
     } = await deployFixture();
 
     await registry.createDID(
@@ -200,10 +299,13 @@ describe("DIDRegistry", function () {
         newController.address
       )
     )
-      .to.emit(registry, "ControllerUpdated")
+      .to.emit(
+        registry,
+        "ControllerUpdated"
+      )
       .withArgs(
-        (await network.connect()).ethers.keccak256(
-          (await network.connect()).ethers.toUtf8Bytes(did)
+        ethers.keccak256(
+          ethers.toUtf8Bytes(did)
         ),
         controller.address,
         newController.address
@@ -221,8 +323,11 @@ describe("DIDRegistry", function () {
   });
 
   it("supports DID lifecycle revocation", async function () {
-    const { registry, controller, newKey } =
-      await deployFixture();
+    const {
+      registry,
+      controller,
+      newKey
+    } = await deployFixture();
 
     await registry.createDID(
       did,
@@ -236,7 +341,10 @@ describe("DIDRegistry", function () {
 
     await expect(
       registry.revokeDID(did)
-    ).to.emit(registry, "DIDRevoked");
+    ).to.emit(
+      registry,
+      "DIDRevoked"
+    );
 
     expect(
       await registry.isActive(did)
@@ -254,7 +362,9 @@ describe("DIDRegistry", function () {
   });
 
   it("rejects resolving an unknown DID", async function () {
-    const { registry } = await deployFixture();
+    const {
+      registry
+    } = await deployFixture();
 
     await expect(
       registry.resolveDID(

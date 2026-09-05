@@ -8,6 +8,7 @@ describe("AssetNFT", function () {
   let didRegistry: Contract;
   let policyEngine: Contract;
   let assetNFT: Contract;
+  let auditLogger: Contract;
 
   let admin: Signer;
   let manager: Signer;
@@ -21,28 +22,35 @@ describe("AssetNFT", function () {
 
   let didRegistryAddress: string;
   let policyEngineAddress: string;
+  let auditLoggerAddress: string;
 
-  const DID = "did:trustmesh:alice";
+  const DID =
+    "did:trustmesh:alice";
 
-  const ASSET_RESOURCE = ethers.keccak256(
-    ethers.toUtf8Bytes("ASSET")
-  );
+  const ASSET_RESOURCE =
+    ethers.keccak256(
+      ethers.toUtf8Bytes("ASSET")
+    );
 
-  const MINT_ACTION = ethers.keccak256(
-    ethers.toUtf8Bytes("MINT")
-  );
+  const MINT_ACTION =
+    ethers.keccak256(
+      ethers.toUtf8Bytes("MINT")
+    );
 
-  const TRANSFER_ACTION = ethers.keccak256(
-    ethers.toUtf8Bytes("TRANSFER")
-  );
+  const TRANSFER_ACTION =
+    ethers.keccak256(
+      ethers.toUtf8Bytes("TRANSFER")
+    );
 
-  const DID_HASH = ethers.keccak256(
-    ethers.toUtf8Bytes(DID)
-  );
+  const DID_HASH =
+    ethers.keccak256(
+      ethers.toUtf8Bytes(DID)
+    );
 
-  const ADMIN_ROLE = ethers.keccak256(
-    ethers.toUtf8Bytes("ADMIN")
-  );
+  const ADMIN_ROLE =
+    ethers.keccak256(
+      ethers.toUtf8Bytes("ADMIN")
+    );
 
   beforeEach(async function () {
     [
@@ -64,32 +72,53 @@ describe("AssetNFT", function () {
     attackerAddress =
       await attacker.getAddress();
 
+    // 1. Deploy AuditLogger
+    const AuditLogger =
+      await ethers.getContractFactory(
+        "AuditLogger"
+      );
+
+    auditLogger =
+      await AuditLogger.deploy();
+
+    await auditLogger.waitForDeployment();
+
+    auditLoggerAddress =
+      await auditLogger.getAddress();
+
+    // 2. Deploy DIDRegistry
     const DIDRegistry =
       await ethers.getContractFactory(
         "DIDRegistry"
       );
 
     didRegistry =
-      await DIDRegistry.deploy();
+      await DIDRegistry.deploy(
+        auditLoggerAddress
+      );
 
     await didRegistry.waitForDeployment();
 
     didRegistryAddress =
       await didRegistry.getAddress();
 
+    // 3. Deploy PolicyEngine
     const PolicyEngine =
       await ethers.getContractFactory(
         "PolicyEngine"
       );
 
     policyEngine =
-      await PolicyEngine.deploy();
+      await PolicyEngine.deploy(
+        auditLoggerAddress
+      );
 
     await policyEngine.waitForDeployment();
 
     policyEngineAddress =
       await policyEngine.getAddress();
 
+    // 4. Deploy AssetNFT
     const AssetNFT =
       await ethers.getContractFactory(
         "AssetNFT"
@@ -99,11 +128,26 @@ describe("AssetNFT", function () {
       await AssetNFT.deploy(
         adminAddress,
         didRegistryAddress,
-        policyEngineAddress
+        policyEngineAddress,
+        auditLoggerAddress
       );
 
     await assetNFT.waitForDeployment();
 
+    // 5. Authorize all TrustMesh contracts
+    await auditLogger.authorizeLogger(
+      didRegistryAddress
+    );
+
+    await auditLogger.authorizeLogger(
+      policyEngineAddress
+    );
+
+    await auditLogger.authorizeLogger(
+      await assetNFT.getAddress()
+    );
+
+    // 6. Create test DID
     await didRegistry.createDID(
       DID,
       "ipfs://did-document",
@@ -153,6 +197,14 @@ describe("AssetNFT", function () {
         await assetNFT.policyEngine()
       ).to.equal(
         policyEngineAddress
+      );
+    });
+
+    it("sets the AuditLogger address", async function () {
+      expect(
+        await assetNFT.auditLogger()
+      ).to.equal(
+        auditLoggerAddress
       );
     });
 
@@ -265,6 +317,16 @@ describe("AssetNFT", function () {
     });
 
     it("rejects admin without PolicyEngine permission", async function () {
+      const role =
+        await assetNFT.ASSET_ADMIN_ROLE();
+
+      expect(
+        await assetNFT.hasRole(
+          role,
+          adminAddress
+        )
+      ).to.equal(true);
+
       await expect(
         assetNFT.mintAsset(
           userAddress,

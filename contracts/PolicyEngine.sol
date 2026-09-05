@@ -3,6 +3,16 @@ pragma solidity ^0.8.24;
 
 import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
 
+interface IPolicyAuditLogger {
+    function recordAudit(
+        address actor,
+        bytes32 action,
+        bytes32 resourceType,
+        bytes32 resourceId,
+        bool success
+    ) external;
+}
+
 /// @title PolicyEngine
 /// @notice Generic on-chain RBAC engine for TrustMesh.
 /// @dev Organizations define their own roles, resources, actions and policies.
@@ -15,12 +25,35 @@ contract PolicyEngine is Ownable {
 
     mapping(bytes32 => Role) private _roles;
 
-    // User/identity wallet => assigned role
     mapping(address => bytes32) private _userRoles;
 
-    // Role => Resource => Action => permission
-    mapping(bytes32 => mapping(bytes32 => mapping(bytes32 => bool)))
-        private _permissions;
+    mapping(
+        bytes32 =>
+            mapping(
+                bytes32 =>
+                    mapping(bytes32 => bool)
+            )
+    ) private _permissions;
+
+    IPolicyAuditLogger public immutable auditLogger;
+
+    bytes32 public constant ROLE_RESOURCE =
+        keccak256("ROLE");
+
+    bytes32 public constant ROLE_CREATED =
+        keccak256("ROLE_CREATED");
+
+    bytes32 public constant ROLE_ASSIGNED =
+        keccak256("ROLE_ASSIGNED");
+
+    bytes32 public constant ROLE_REVOKED =
+        keccak256("ROLE_REVOKED");
+
+    bytes32 public constant ACCESS_GRANTED =
+        keccak256("ACCESS_GRANTED");
+
+    bytes32 public constant ACCESS_DENIED =
+        keccak256("ACCESS_DENIED");
 
     event RoleCreated(
         bytes32 indexed roleId,
@@ -63,14 +96,30 @@ contract PolicyEngine is Ownable {
     error RoleAlreadyExists();
     error InvalidSubject();
     error RoleNotAssigned();
+    error InvalidAuditLogger();
 
-    constructor() Ownable(msg.sender) {}
+    constructor(
+        address auditLoggerAddress
+    )
+        Ownable(msg.sender)
+    {
+        if (auditLoggerAddress == address(0)) {
+            revert InvalidAuditLogger();
+        }
 
-    /// @notice Organization creates a custom role.
+        auditLogger =
+            IPolicyAuditLogger(
+                auditLoggerAddress
+            );
+    }
+
     function createRole(
         bytes32 roleId,
         string calldata name
-    ) external onlyOwner {
+    )
+        external
+        onlyOwner
+    {
         if (roleId == bytes32(0)) {
             revert InvalidRole();
         }
@@ -88,14 +137,27 @@ contract PolicyEngine is Ownable {
             name: name
         });
 
-        emit RoleCreated(roleId, name);
+        emit RoleCreated(
+            roleId,
+            name
+        );
+
+        auditLogger.recordAudit(
+            msg.sender,
+            ROLE_CREATED,
+            ROLE_RESOURCE,
+            roleId,
+            true
+        );
     }
 
-    /// @notice Assign an existing role to an identity.
     function assignRole(
         address subject,
         bytes32 roleId
-    ) external onlyOwner {
+    )
+        external
+        onlyOwner
+    {
         if (subject == address(0)) {
             revert InvalidSubject();
         }
@@ -106,18 +168,32 @@ contract PolicyEngine is Ownable {
 
         _userRoles[subject] = roleId;
 
-        emit RoleAssigned(subject, roleId);
+        emit RoleAssigned(
+            subject,
+            roleId
+        );
+
+        auditLogger.recordAudit(
+            subject,
+            ROLE_ASSIGNED,
+            ROLE_RESOURCE,
+            roleId,
+            true
+        );
     }
 
-    /// @notice Remove a user's assigned role.
     function revokeRole(
         address subject
-    ) external onlyOwner {
+    )
+        external
+        onlyOwner
+    {
         if (subject == address(0)) {
             revert InvalidSubject();
         }
 
-        bytes32 roleId = _userRoles[subject];
+        bytes32 roleId =
+            _userRoles[subject];
 
         if (roleId == bytes32(0)) {
             revert RoleNotAssigned();
@@ -125,16 +201,29 @@ contract PolicyEngine is Ownable {
 
         delete _userRoles[subject];
 
-        emit RoleRevoked(subject, roleId);
+        emit RoleRevoked(
+            subject,
+            roleId
+        );
+
+        auditLogger.recordAudit(
+            subject,
+            ROLE_REVOKED,
+            ROLE_RESOURCE,
+            roleId,
+            true
+        );
     }
 
-    /// @notice Configure whether a role can perform an action on a resource.
     function setPermission(
         bytes32 roleId,
         bytes32 resourceId,
         bytes32 actionId,
         bool allowed
-    ) external onlyOwner {
+    )
+        external
+        onlyOwner
+    {
         if (!_roles[roleId].exists) {
             revert InvalidRole();
         }
@@ -146,7 +235,8 @@ contract PolicyEngine is Ownable {
             revert InvalidRole();
         }
 
-        _permissions[roleId][resourceId][actionId] = allowed;
+        _permissions[roleId][resourceId][actionId] =
+            allowed;
 
         emit PermissionConfigured(
             roleId,
@@ -156,20 +246,29 @@ contract PolicyEngine is Ownable {
         );
     }
 
-    /// @notice Evaluate access and record the decision on-chain.
     function checkAccess(
         address subject,
         bytes32 resourceId,
         bytes32 actionId
-    ) external returns (bool allowed) {
-        bytes32 roleId = _userRoles[subject];
+    )
+        external
+        returns (bool allowed)
+    {
+        bytes32 roleId =
+            _userRoles[subject];
 
         allowed =
             subject != address(0) &&
             roleId != bytes32(0) &&
             resourceId != bytes32(0) &&
             actionId != bytes32(0) &&
-            _permissions[roleId][resourceId][actionId];
+            _permissions[
+                roleId
+            ][
+                resourceId
+            ][
+                actionId
+            ];
 
         if (allowed) {
             emit AccessGranted(
@@ -178,6 +277,14 @@ contract PolicyEngine is Ownable {
                 resourceId,
                 actionId
             );
+
+            auditLogger.recordAudit(
+                subject,
+                ACCESS_GRANTED,
+                resourceId,
+                actionId,
+                true
+            );
         } else {
             emit AccessDenied(
                 subject,
@@ -185,17 +292,27 @@ contract PolicyEngine is Ownable {
                 resourceId,
                 actionId
             );
+
+            auditLogger.recordAudit(
+                subject,
+                ACCESS_DENIED,
+                resourceId,
+                actionId,
+                false
+            );
         }
     }
 
-    /// @notice Get a user's assigned role.
     function getUserRole(
         address subject
-    ) external view returns (bytes32) {
+    )
+        external
+        view
+        returns (bytes32)
+    {
         return _userRoles[subject];
     }
 
-    /// @notice Get role information.
     function getRole(
         bytes32 roleId
     )
@@ -206,7 +323,8 @@ contract PolicyEngine is Ownable {
             string memory name
         )
     {
-        Role memory role = _roles[roleId];
+        Role memory role =
+            _roles[roleId];
 
         return (
             role.exists,
@@ -214,19 +332,29 @@ contract PolicyEngine is Ownable {
         );
     }
 
-    /// @notice Read-only permission check for frontend/backend.
     function hasPermission(
         address subject,
         bytes32 resourceId,
         bytes32 actionId
-    ) external view returns (bool) {
-        bytes32 roleId = _userRoles[subject];
+    )
+        external
+        view
+        returns (bool)
+    {
+        bytes32 roleId =
+            _userRoles[subject];
 
         return
             subject != address(0) &&
             roleId != bytes32(0) &&
             resourceId != bytes32(0) &&
             actionId != bytes32(0) &&
-            _permissions[roleId][resourceId][actionId];
+            _permissions[
+                roleId
+            ][
+                resourceId
+            ][
+                actionId
+            ];
     }
 }

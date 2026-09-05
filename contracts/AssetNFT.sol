@@ -26,13 +26,23 @@ interface IPolicyEngine {
         returns (bool allowed);
 }
 
+interface IAuditLogger {
+    function recordAudit(
+        address actor,
+        bytes32 action,
+        bytes32 resourceType,
+        bytes32 resourceId,
+        bool success
+    ) external;
+}
+
 /**
  * @title AssetNFT
  * @notice Generic NFT-based digital asset management layer for TrustMesh.
  *
  * Organisations define their own users, roles, permissions and assets.
- * TrustMesh provides the reusable identity, authorization and ownership
- * infrastructure.
+ * TrustMesh provides reusable identity, authorization, ownership
+ * and audit infrastructure.
  */
 contract AssetNFT is ERC721, AccessControl {
     bytes32 public constant ASSET_ADMIN_ROLE =
@@ -47,8 +57,15 @@ contract AssetNFT is ERC721, AccessControl {
     bytes32 public constant TRANSFER_ACTION =
         keccak256("TRANSFER");
 
+    bytes32 public constant ASSET_MINTED =
+        keccak256("ASSET_MINTED");
+
+    bytes32 public constant ASSET_TRANSFERRED =
+        keccak256("ASSET_TRANSFERRED");
+
     IDIDRegistry public immutable didRegistry;
     IPolicyEngine public immutable policyEngine;
+    IAuditLogger public immutable auditLogger;
 
     uint256 private _nextTokenId = 1;
 
@@ -77,7 +94,8 @@ contract AssetNFT is ERC721, AccessControl {
     constructor(
         address admin,
         address didRegistryAddress,
-        address policyEngineAddress
+        address policyEngineAddress,
+        address auditLoggerAddress
     )
         ERC721("TrustMesh Asset", "TMA")
     {
@@ -96,11 +114,19 @@ contract AssetNFT is ERC721, AccessControl {
             "Invalid policy engine"
         );
 
+        require(
+            auditLoggerAddress != address(0),
+            "Invalid audit logger"
+        );
+
         didRegistry =
             IDIDRegistry(didRegistryAddress);
 
         policyEngine =
             IPolicyEngine(policyEngineAddress);
+
+        auditLogger =
+            IAuditLogger(auditLoggerAddress);
 
         _grantRole(
             DEFAULT_ADMIN_ROLE,
@@ -113,9 +139,6 @@ contract AssetNFT is ERC721, AccessControl {
         );
     }
 
-    /**
-     * @notice Mint a generic organisation-defined asset.
-     */
     function mintAsset(
         address to,
         string calldata did,
@@ -180,12 +203,17 @@ contract AssetNFT is ERC721, AccessControl {
             metadataURI
         );
 
+        auditLogger.recordAudit(
+            msg.sender,
+            ASSET_MINTED,
+            ASSET_RESOURCE,
+            bytes32(tokenId),
+            true
+        );
+
         return tokenId;
     }
 
-    /**
-     * @notice Return the DID hash associated with an asset.
-     */
     function assetDID(
         uint256 tokenId
     )
@@ -201,9 +229,6 @@ contract AssetNFT is ERC721, AccessControl {
         return _assets[tokenId].didHash;
     }
 
-    /**
-     * @notice Return asset metadata URI.
-     */
     function assetMetadata(
         uint256 tokenId
     )
@@ -219,9 +244,6 @@ contract AssetNFT is ERC721, AccessControl {
         return _assets[tokenId].metadataURI;
     }
 
-    /**
-     * @notice Return complete asset information.
-     */
     function getAsset(
         uint256 tokenId
     )
@@ -248,9 +270,6 @@ contract AssetNFT is ERC721, AccessControl {
         );
     }
 
-    /**
-     * @notice Check whether an asset exists.
-     */
     function assetExists(
         uint256 tokenId
     )
@@ -261,9 +280,6 @@ contract AssetNFT is ERC721, AccessControl {
         return _assetExists(tokenId);
     }
 
-    /**
-     * @dev Enforce PolicyEngine authorization for normal transfers.
-     */
     function _update(
         address to,
         uint256 tokenId,
@@ -301,20 +317,28 @@ contract AssetNFT is ERC721, AccessControl {
             from != address(0) &&
             to != address(0)
         ) {
+            bytes32 didHash =
+                _assets[tokenId].didHash;
+
             emit AssetTransferred(
                 tokenId,
                 from,
                 to,
-                _assets[tokenId].didHash
+                didHash
+            );
+
+            auditLogger.recordAudit(
+                auth,
+                ASSET_TRANSFERRED,
+                ASSET_RESOURCE,
+                bytes32(tokenId),
+                true
             );
         }
 
         return previousOwner;
     }
 
-    /**
-     * @notice Return asset metadata URI.
-     */
     function tokenURI(
         uint256 tokenId
     )
@@ -331,9 +355,6 @@ contract AssetNFT is ERC721, AccessControl {
         return _assets[tokenId].metadataURI;
     }
 
-    /**
-     * @dev Resolve ERC721 and AccessControl interface support.
-     */
     function supportsInterface(
         bytes4 interfaceId
     )
