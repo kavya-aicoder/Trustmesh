@@ -1,8 +1,6 @@
+import "dotenv/config";
 import { defineConfig } from "hardhat/config";
 import hardhatToolboxMochaEthers from "@nomicfoundation/hardhat-toolbox-mocha-ethers";
-import dotenv from "dotenv";
-
-dotenv.config();
 
 export default defineConfig({
   plugins: [hardhatToolboxMochaEthers],
@@ -14,8 +12,8 @@ export default defineConfig({
   networks: {
     polygonAmoy: {
       type: "http",
+      url: process.env.POLYGON_AMOY_RPC_URL || "https://rpc-amoy.polygon.technology/",
       chainId: 80002,
-      url: process.env.POLYGON_AMOY_RPC_URL || "",
       accounts: process.env.DEPLOYER_PRIVATE_KEY
         ? [process.env.DEPLOYER_PRIVATE_KEY]
         : [],
