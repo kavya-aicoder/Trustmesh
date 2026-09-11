@@ -23,7 +23,6 @@ const navigation: Array<{
   { label: "Audit Log", path: "/audit", icon: "audit" },
   { label: "Security Center", path: "/security", icon: "security" },
   { label: "Recovery", path: "/recovery", icon: "recovery" },
-  { label: "Demo / External Application", path: "/demo", icon: "resource" },
 ];
 
 function NavIcon({ name }: { name: IconName }) {
