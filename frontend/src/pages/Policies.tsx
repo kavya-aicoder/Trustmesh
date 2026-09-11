@@ -3,6 +3,7 @@ import { useMemo, useState } from "react";
 import Sidebar from "../components/layout/Sidebar";
 import Topbar from "../components/layout/Topbar";
 import StatusBadge from "../components/ui/StatusBadge";
+import Icon from "../components/ui/Icon";
 
 interface Policy {
   id: string;
@@ -134,7 +135,7 @@ function Policies() {
             <div className="stat-card">
               <div className="stat-card-top">
                 <span className="stat-label">TOTAL POLICIES</span>
-                <span className="stat-icon">◇</span>
+                <span className="stat-icon"><Icon name="policy" /></span>
               </div>
               <div className="stat-value">{policies.length}</div>
               <div className="stat-detail">Organization policy definitions</div>
@@ -143,7 +144,7 @@ function Policies() {
             <div className="stat-card">
               <div className="stat-card-top">
                 <span className="stat-label">ACTIVE</span>
-                <span className="stat-icon">✓</span>
+                <span className="stat-icon"><Icon name="check" /></span>
               </div>
               <div className="stat-value">{activeCount}</div>
               <div className="stat-detail">Policies currently enforced</div>
@@ -152,7 +153,7 @@ function Policies() {
             <div className="stat-card">
               <div className="stat-card-top">
                 <span className="stat-label">DRAFTS</span>
-                <span className="stat-icon">◌</span>
+                <span className="stat-icon"><Icon name="draft" /></span>
               </div>
               <div className="stat-value">
                 {policies.length - activeCount}
@@ -163,7 +164,7 @@ function Policies() {
             <div className="stat-card">
               <div className="stat-card-top">
                 <span className="stat-label">DECISION MODEL</span>
-                <span className="stat-icon">⌁</span>
+                <span className="stat-icon"><Icon name="shield" /></span>
               </div>
               <div className="stat-value">RBAC</div>
               <div className="stat-detail">Role-based access control</div>
@@ -188,7 +189,7 @@ function Policies() {
 
               <div className="identity-toolbar">
                 <div className="identity-search">
-                  <span>⌕</span>
+                  <span className="search-icon"><Icon name="search" /></span>
                   <input
                     type="text"
                     placeholder="Search policies..."
@@ -198,14 +199,15 @@ function Policies() {
                 </div>
 
                 <button className="filter-button">
-                  All policies ▾
+                  All policies
+                  <span className="filter-chevron">⌄</span>
                 </button>
               </div>
 
               <div className="policy-list">
                 {filteredPolicies.length === 0 ? (
                   <div className="identity-empty">
-                    <div>⌕</div>
+                    <div className="empty-icon"><Icon name="search" /></div>
                     <h3>No policies found</h3>
                     <p>Try a different policy name or resource.</p>
                   </div>
@@ -213,7 +215,7 @@ function Policies() {
                   filteredPolicies.map((policy) => (
                     <div className="policy-row" key={policy.id}>
                       <div className="policy-main">
-                        <div className="policy-icon">◇</div>
+                        <div className="policy-icon"><Icon name="policy" /></div>
 
                         <div>
                           <strong>{policy.name}</strong>
@@ -270,7 +272,7 @@ function Policies() {
                   <small>DID / wallet</small>
                 </div>
 
-                <div className="policy-flow-arrow">→</div>
+                <div className="policy-flow-arrow"><Icon name="arrow" /></div>
 
                 <div className="policy-flow-node">
                   <span>02</span>
@@ -278,7 +280,7 @@ function Policies() {
                   <small>RBAC assignment</small>
                 </div>
 
-                <div className="policy-flow-arrow">→</div>
+                <div className="policy-flow-arrow"><Icon name="arrow" /></div>
 
                 <div className="policy-flow-node">
                   <span>03</span>
@@ -286,7 +288,7 @@ function Policies() {
                   <small>Rules evaluated</small>
                 </div>
 
-                <div className="policy-flow-arrow">→</div>
+                <div className="policy-flow-arrow"><Icon name="arrow" /></div>
 
                 <div className="policy-flow-node">
                   <span>04</span>

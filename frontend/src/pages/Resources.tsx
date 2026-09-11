@@ -3,21 +3,29 @@ import { useEffect, useMemo, useState } from "react";
 import Sidebar from "../components/layout/Sidebar";
 import Topbar from "../components/layout/Topbar";
 import StatusBadge from "../components/ui/StatusBadge";
+import Icon from "../components/ui/Icon";
 import { getResources } from "../services/resources";
 import type { Resource } from "../types/api";
 
 function Resources() {
   const [resources, setResources] = useState<Resource[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
   const [search, setSearch] = useState("");
 
   useEffect(() => {
     async function loadResources() {
       try {
+        setError("");
         const response = await getResources();
         setResources(response.resources);
       } catch (error) {
         console.error("Failed to load resources:", error);
+        setError(
+          error instanceof Error
+            ? error.message
+            : "Unable to load resources.",
+        );
       } finally {
         setLoading(false);
       }
@@ -65,7 +73,7 @@ function Resources() {
             <div className="stat-card">
               <div className="stat-card-top">
                 <span className="stat-label">TOTAL RESOURCES</span>
-                <span className="stat-icon">□</span>
+                <span className="stat-icon"><Icon name="resource" /></span>
               </div>
               <div className="stat-value">
                 {loading ? "…" : resources.length}
@@ -78,7 +86,7 @@ function Resources() {
             <div className="stat-card">
               <div className="stat-card-top">
                 <span className="stat-label">PROTECTED</span>
-                <span className="stat-icon">✓</span>
+                <span className="stat-icon"><Icon name="check" /></span>
               </div>
               <div className="stat-value">
                 {loading ? "…" : protectedCount}
@@ -91,7 +99,7 @@ function Resources() {
             <div className="stat-card">
               <div className="stat-card-top">
                 <span className="stat-label">APPLICATIONS</span>
-                <span className="stat-icon">▣</span>
+                <span className="stat-icon"><Icon name="database" /></span>
               </div>
               <div className="stat-value">
                 {loading
@@ -107,7 +115,7 @@ function Resources() {
             <div className="stat-card">
               <div className="stat-card-top">
                 <span className="stat-label">ACCESS MODEL</span>
-                <span className="stat-icon">◇</span>
+                <span className="stat-icon"><Icon name="policy" /></span>
               </div>
               <div className="stat-value">RBAC</div>
               <div className="stat-detail">
@@ -123,36 +131,48 @@ function Resources() {
                 <h2>Protected resources</h2>
               </div>
 
-              <button className="primary-action">
+              <button type="button" className="primary-action">
                 + Register resource
               </button>
             </div>
 
             <div className="identity-toolbar">
               <div className="identity-search">
-                <span>⌕</span>
+                <span className="search-icon"><Icon name="search" /></span>
                 <input
                   type="text"
                   placeholder="Search resources..."
+                  aria-label="Search resources"
                   value={search}
                   onChange={(event) => setSearch(event.target.value)}
                 />
               </div>
 
-              <button className="filter-button">
-                All resources ▾
+              <button
+                type="button"
+                className="filter-button"
+                aria-label="Filter resources"
+              >
+                All resources
+                <span className="filter-chevron">⌄</span>
               </button>
             </div>
 
             {loading ? (
-              <div className="resource-empty">
-                <div>□</div>
+              <div className="resource-empty" aria-live="polite">
+                <div className="empty-icon"><Icon name="resource" /></div>
                 <h3>Loading resources</h3>
                 <p>Reading the TrustLayer resource registry.</p>
               </div>
+            ) : error ? (
+              <div className="resource-empty resource-error" role="alert">
+                <div className="empty-icon"><Icon name="shield" /></div>
+                <h3>Resources unavailable</h3>
+                <p>{error}</p>
+              </div>
             ) : filteredResources.length === 0 ? (
               <div className="resource-empty">
-                <div>⌕</div>
+                <div className="empty-icon"><Icon name="search" /></div>
                 <h3>No resources found</h3>
                 <p>Try a different resource or application name.</p>
               </div>
@@ -172,7 +192,7 @@ function Resources() {
                     key={resource.resource_id}
                   >
                     <div className="resource-primary">
-                      <span className="resource-icon">□</span>
+                      <span className="resource-icon"><Icon name="resource" /></span>
 
                       <div>
                         <strong>{resource.name}</strong>

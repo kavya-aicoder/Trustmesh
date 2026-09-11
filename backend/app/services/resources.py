@@ -2,11 +2,11 @@ from dataclasses import dataclass
 
 from sqlalchemy import select
 
-from app.db.models import ResourceRecord
+from app.db.models import Resource as ResourceModel
 from app.db.session import SessionLocal
 
 
-@dataclass(frozen=True)
+@dataclass
 class Resource:
     resource_id: str
     name: str
@@ -20,41 +20,44 @@ class Resource:
 class ResourceService:
     """PostgreSQL-backed resource service."""
 
-    def list_resources(self) -> list[Resource]:
-        with SessionLocal() as db:
-            records = db.scalars(
-                select(ResourceRecord).order_by(ResourceRecord.name)
-            ).all()
-
-        return [
-            Resource(
-                resource_id=record.id,
-                name=record.name,
-                resource_type=record.resource_type,
-                application=record.application,
-                owner=record.owner,
-                status=record.status,
-                access_level=record.access_level,
-            )
-            for record in records
-        ]
-
-    def get_resource(self, resource_id: str) -> Resource | None:
-        with SessionLocal() as db:
-            record = db.get(ResourceRecord, resource_id)
-
-        if record is None:
-            return None
+    @staticmethod
+    def _to_resource(record: ResourceModel) -> Resource:
+        metadata = record.metadata_json or {}
 
         return Resource(
             resource_id=record.id,
             name=record.name,
             resource_type=record.resource_type,
-            application=record.application,
-            owner=record.owner,
-            status=record.status,
-            access_level=record.access_level,
+            application=str(
+                metadata.get("application")
+                or metadata.get("app")
+                or "TrustLayer"
+            ),
+            owner=str(
+                metadata.get("owner")
+                or metadata.get("owner_did")
+                or "Unassigned"
+            ),
+            status=str(metadata.get("status") or "Active"),
+            access_level=str(metadata.get("access_level") or "Restricted"),
         )
+
+    def list_resources(self) -> list[Resource]:
+        with SessionLocal() as db:
+            records = db.execute(
+                select(ResourceModel).order_by(ResourceModel.name)
+            ).scalars().all()
+
+            return [self._to_resource(record) for record in records]
+
+    def get_resource(self, resource_id: str) -> Resource | None:
+        with SessionLocal() as db:
+            record = db.get(ResourceModel, resource_id)
+
+            if record is None:
+                return None
+
+            return self._to_resource(record)
 
 
 resource_service = ResourceService()

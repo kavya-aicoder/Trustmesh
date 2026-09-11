@@ -5,6 +5,7 @@ from app.indexer.service import IndexerService
 
 def test_event_repository_stores_event():
     repository = EventRepository()
+    repository.clear()
 
     event = BlockchainEvent(
         event_name="TestEvent",
@@ -18,11 +19,20 @@ def test_event_repository_stores_event():
 
     repository.add(event)
 
-    assert repository.list_events() == [event]
+    stored = repository.list_events()
+    assert len(stored) == 1
+    assert stored[0].event_name == event.event_name
+    assert stored[0].contract_address == event.contract_address
+    assert stored[0].transaction_hash == event.transaction_hash
+    assert stored[0].block_number == event.block_number
+    assert stored[0].log_index == event.log_index
+    assert stored[0].data == event.data
+    assert stored[0].timestamp is not None
 
 
 def test_indexer_ingests_event():
     repository = EventRepository()
+    repository.clear()
     service = IndexerService(repository)
 
     event = BlockchainEvent(
@@ -38,7 +48,16 @@ def test_indexer_ingests_event():
     result = service.ingest(event)
 
     assert result == event
-    assert service.get_events() == [event]
+
+    stored = service.get_events()
+    assert len(stored) == 1
+    assert stored[0].event_name == event.event_name
+    assert stored[0].contract_address == event.contract_address
+    assert stored[0].transaction_hash == event.transaction_hash
+    assert stored[0].block_number == event.block_number
+    assert stored[0].log_index == event.log_index
+    assert stored[0].data == event.data
+    assert stored[0].timestamp is not None
 
 
 def test_repository_clear():

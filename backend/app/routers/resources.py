@@ -1,48 +1,51 @@
 from fastapi import APIRouter
 
-from app.services.recovery import recovery_service
+from app.services.resources import resource_service
 
 
 router = APIRouter()
 
 
-def serialize_request(request) -> dict:
+def serialize_resource(resource) -> dict:
     return {
-        "request_id": request.request_id,
-        "subject": request.subject,
-        "reason": request.reason,
-        "status": request.status,
-        "approvals": request.approvals,
-        "required_approvals": request.required_approvals,
-        "timelock_hours": request.timelock_hours,
+        "resource_id": resource.resource_id,
+        "name": resource.name,
+        "resource_type": resource.resource_type,
+        "application": resource.application,
+        "owner": resource.owner,
+        "status": resource.status,
+        "access_level": resource.access_level,
     }
 
 
 @router.get("/")
-async def get_recovery_center() -> dict:
-    requests = recovery_service.list_requests()
+async def list_resources() -> dict:
+    resources = resource_service.list_resources()
 
     return {
-        "service": "recovery",
+        "service": "resources",
         "status": "ready",
-        "summary": recovery_service.get_summary(),
-        "requests": [
-            serialize_request(request)
-            for request in requests
+        "count": len(resources),
+        "resources": [
+            serialize_resource(resource)
+            for resource in resources
         ],
     }
 
 
-@router.get("/requests")
-async def list_recovery_requests() -> dict:
-    requests = recovery_service.list_requests()
+@router.get("/{resource_id}")
+async def get_resource(resource_id: str) -> dict:
+    resource = resource_service.get_resource(resource_id)
+
+    if resource is None:
+        return {
+            "service": "resources",
+            "status": "not_found",
+            "resource": None,
+        }
 
     return {
-        "service": "recovery",
+        "service": "resources",
         "status": "ready",
-        "count": len(requests),
-        "requests": [
-            serialize_request(request)
-            for request in requests
-        ],
+        "resource": serialize_resource(resource),
     }

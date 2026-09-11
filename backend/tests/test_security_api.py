@@ -50,7 +50,7 @@ def test_security_findings_api_returns_stored_finding() -> None:
 
     finding = body["findings"][0]
 
-    assert finding["event_id"] == "0xabcdef"
+    assert finding["event_id"] == "0xabcdef:1"
     assert finding["event_name"] == "AccessDenied"
     assert finding["threat_detected"] is True
     assert finding["risk_score"] == 90

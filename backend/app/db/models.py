@@ -73,9 +73,9 @@ class Asset(Base):
     token_id: Mapped[str | None] = mapped_column(String(100), nullable=True, index=True)
     owner_did: Mapped[str | None] = mapped_column(String(255), nullable=True, index=True)
     name: Mapped[str] = mapped_column(String(255), nullable=False)
-    metadata_uri: Mapped[str | None] = mapped_column(String(1000), nullable=True)
+    metadata_json: Mapped[dict] = mapped_column(JSON, nullable=False, default=dict)
     contract_address: Mapped[str | None] = mapped_column(String(42), nullable=True)
-    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utc_now)
+    status: Mapped[str] = mapped_column(String(50), nullable=False, default="Active")
 
 
 class AuditEvent(Base):
@@ -126,3 +126,44 @@ class AuthSession(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utc_now)
     expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
     revoked: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+
+
+class RecoveryRequestRecord(Base):
+    """Persistent record for an identity recovery request."""
+
+    __tablename__ = "recovery_requests"
+
+    id: Mapped[str] = mapped_column(String(64), primary_key=True)
+    subject: Mapped[str] = mapped_column(
+        String(255),
+        nullable=False,
+    )
+    reason: Mapped[str] = mapped_column(
+        Text,
+        nullable=False,
+    )
+    status: Mapped[str] = mapped_column(
+        String(64),
+        nullable=False,
+        default="Pending Consensus",
+    )
+    approvals: Mapped[int] = mapped_column(
+        Integer,
+        nullable=False,
+        default=0,
+    )
+    required_approvals: Mapped[int] = mapped_column(
+        Integer,
+        nullable=False,
+        default=2,
+    )
+    timelock_hours: Mapped[int] = mapped_column(
+        Integer,
+        nullable=False,
+        default=48,
+    )
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime,
+        nullable=False,
+        default=datetime.utcnow,
+    )

@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 
 import { useAuth } from "../hooks/useAuth";
 import { connectWallet, signMessage } from "../services/wallet";
+import Icon from "../components/ui/Icon";
 
 function Login() {
   const navigate = useNavigate();
@@ -59,7 +60,9 @@ function Login() {
     <main className="login-page">
       <div className="login-grid">
         <section className="login-brand">
-          <div className="login-logo">T</div>
+          <div className="login-logo" aria-label="TrustLayer">
+            <span>T</span>
+          </div>
 
           <div className="login-eyebrow">
             TRUSTLAYER / IDENTITY INFRASTRUCTURE
@@ -107,7 +110,7 @@ function Login() {
           </div>
 
           <div className="wallet-preview">
-            <div className="wallet-icon">◉</div>
+            <div className="wallet-icon"><Icon name="identity" /></div>
 
             <div>
               <strong>
@@ -136,7 +139,7 @@ function Login() {
               {step === "idle" && "Connect wallet"}
             </span>
 
-            <span className="button-arrow">→</span>
+            <span className="button-arrow" aria-hidden="true"><Icon name="arrow" /></span>
           </button>
 
           {displayError && (
@@ -146,7 +149,7 @@ function Login() {
           )}
 
           <div className="login-security">
-            <span>◇</span>
+            <span className="login-security-icon"><Icon name="shield" /></span>
             <p>
               You will sign a secure SIWE message.
               No private keys leave your wallet.

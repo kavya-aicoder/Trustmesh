@@ -3,6 +3,7 @@ import { useState } from "react";
 import Sidebar from "../components/layout/Sidebar";
 import Topbar from "../components/layout/Topbar";
 import StatusBadge from "../components/ui/StatusBadge";
+import Icon from "../components/ui/Icon";
 
 interface Identity {
   did: string;
@@ -77,7 +78,7 @@ function Identities() {
             <div className="stat-card">
               <div className="stat-card-top">
                 <span className="stat-label">TOTAL IDENTITIES</span>
-                <span className="stat-icon">◉</span>
+                <span className="stat-icon"><Icon name="identity" /></span>
               </div>
               <div className="stat-value">{demoIdentities.length}</div>
               <div className="stat-detail">Registered in this organization</div>
@@ -86,7 +87,7 @@ function Identities() {
             <div className="stat-card">
               <div className="stat-card-top">
                 <span className="stat-label">VERIFIED</span>
-                <span className="stat-icon">✓</span>
+                <span className="stat-icon"><Icon name="check" /></span>
               </div>
               <div className="stat-value">
                 {demoIdentities.filter(
@@ -99,7 +100,7 @@ function Identities() {
             <div className="stat-card">
               <div className="stat-card-top">
                 <span className="stat-label">PENDING</span>
-                <span className="stat-icon">◌</span>
+                <span className="stat-icon"><Icon name="resource" /></span>
               </div>
               <div className="stat-value">
                 {demoIdentities.filter(
@@ -112,7 +113,7 @@ function Identities() {
             <div className="stat-card">
               <div className="stat-card-top">
                 <span className="stat-label">IDENTITY METHOD</span>
-                <span className="stat-icon">◇</span>
+                <span className="stat-icon"><Icon name="identity" /></span>
               </div>
               <div className="stat-value">DID</div>
               <div className="stat-detail">Decentralized identity registry</div>
@@ -126,14 +127,15 @@ function Identities() {
                 <h2>Organization identities</h2>
               </div>
 
-              <button className="primary-action">
-                + Register identity
+              <button type="button" className="primary-action">
+                <Icon name="identity" />
+                <span>Register identity</span>
               </button>
             </div>
 
             <div className="identity-toolbar">
               <div className="identity-search">
-                <span>⌕</span>
+                <span className="identity-search-icon"><Icon name="search" /></span>
                 <input
                   type="text"
                   placeholder="Search DID, wallet, or role..."
@@ -142,7 +144,10 @@ function Identities() {
                 />
               </div>
 
-              <button className="filter-button">All identities ▾</button>
+              <button className="filter-button">
+                <span>All identities</span>
+                <span aria-hidden="true">⌄</span>
+              </button>
             </div>
 
             <div className="identity-table">
@@ -156,7 +161,7 @@ function Identities() {
 
               {filteredIdentities.length === 0 ? (
                 <div className="identity-empty">
-                  <div>⌕</div>
+                  <div className="security-state-icon"><Icon name="identity" /></div>
                   <h3>No identities found</h3>
                   <p>Try a different DID, wallet address, or role.</p>
                 </div>

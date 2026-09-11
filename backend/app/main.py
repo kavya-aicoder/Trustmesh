@@ -1,8 +1,12 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from sqlalchemy import text
+
+from app.db.session import engine
 
 from app.core.config import settings
 from app.routers import (
+    identity,
     access,
     assets,
     audit,
@@ -24,15 +28,22 @@ app = FastAPI(
 )
 
 
+cors_origins = [
+    origin.strip()
+    for origin in settings.cors_origins.split(",")
+    if origin.strip()
+]
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=cors_origins,
     allow_credentials=False,
-    allow_methods=["*"],
+    allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
     allow_headers=["*"],
 )
 
 
+app.include_router(identity.router, prefix="/identity", tags=["identity"])
 app.include_router(
     auth.router,
     prefix="/auth",
@@ -88,3 +99,19 @@ async def root() -> dict:
 @app.get("/health", tags=["Health"])
 async def health() -> dict:
     return {"status": "healthy"}
+
+@app.get("/health/ready", tags=["Health"])
+async def readiness() -> dict:
+    try:
+        with engine.connect() as connection:
+            connection.execute(text("SELECT 1"))
+    except Exception:
+        return {
+            "status": "not_ready",
+            "database": "unavailable",
+        }
+
+    return {
+        "status": "ready",
+        "database": "available",
+    }

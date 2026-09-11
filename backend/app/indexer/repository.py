@@ -1,3 +1,5 @@
+from datetime import datetime, timezone
+
 from sqlalchemy import select
 
 from app.db.models import AuditEvent
@@ -17,7 +19,7 @@ class EventRepository:
                 contract_address=event.contract_address,
                 block_number=event.block_number,
                 log_index=event.log_index,
-                timestamp=event.timestamp,
+                timestamp=event.timestamp or datetime.now(timezone.utc),
                 data=event.data,
             )
             db.merge(record)

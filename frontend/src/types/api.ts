@@ -12,9 +12,10 @@ export interface SIWEMessageResponse {
 }
 
 export interface SIWEVerifyResponse {
-  authenticated: boolean;
-  address: string | null;
+  address: string;
+  session_id: string;
   message: string;
+  authenticated: boolean;
 }
 
 export interface AuditEvent {
@@ -59,6 +60,8 @@ export interface Asset {
   status: string;
   access_level: string;
   policy: string;
+  token_id?: string | null;
+  contract_address?: string | null;
 }
 
 export interface AssetsResponse {
@@ -155,4 +158,28 @@ export interface SecurityResponse {
   status: string;
   summary: SecuritySummary;
   events: SecurityEvent[];
+}
+
+export interface RiskGraphNode {
+  id: string;
+  label: string;
+  type: string;
+  risk: number;
+}
+
+export interface RiskGraphLink {
+  source: string;
+  target: string;
+  relation: string;
+}
+
+export interface RiskGraphResponse {
+  service: string;
+  status: string;
+  count: {
+    nodes: number;
+    links: number;
+  };
+  nodes: RiskGraphNode[];
+  links: RiskGraphLink[];
 }

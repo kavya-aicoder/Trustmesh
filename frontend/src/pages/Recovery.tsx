@@ -3,6 +3,7 @@ import { useEffect, useState } from "react";
 import Sidebar from "../components/layout/Sidebar";
 import Topbar from "../components/layout/Topbar";
 import StatusBadge from "../components/ui/StatusBadge";
+import Icon from "../components/ui/Icon";
 import { getRecoveryCenter } from "../services/recovery";
 import type {
   RecoveryRequest,
@@ -19,10 +20,14 @@ function Recovery() {
 
   const [requests, setRequests] = useState<RecoveryRequest[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
 
   useEffect(() => {
     async function loadRecovery() {
       try {
+        setLoading(true);
+        setError("");
+
         const response = await getRecoveryCenter();
 
         setSummary({
@@ -39,6 +44,11 @@ function Recovery() {
         );
       } catch (error) {
         console.error("Failed to load recovery center:", error);
+        setError(
+          error instanceof Error
+            ? error.message
+            : "Unable to load the recovery center.",
+        );
       } finally {
         setLoading(false);
       }
@@ -77,7 +87,7 @@ function Recovery() {
                   ACTIVE REQUESTS
                 </span>
 
-                <span className="stat-icon">◇</span>
+                <span className="stat-icon"><Icon name="resource" /></span>
               </div>
 
               <div className="stat-value">
@@ -95,7 +105,7 @@ function Recovery() {
                   CONSENSUS
                 </span>
 
-                <span className="stat-icon">◎</span>
+                <span className="stat-icon"><Icon name="identity" /></span>
               </div>
 
               <div className="stat-value">
@@ -113,7 +123,7 @@ function Recovery() {
                   APPROVALS REQUIRED
                 </span>
 
-                <span className="stat-icon">✓</span>
+                <span className="stat-icon"><Icon name="check" /></span>
               </div>
 
               <div className="stat-value">
@@ -131,7 +141,7 @@ function Recovery() {
                   TIMELOCK
                 </span>
 
-                <span className="stat-icon">◷</span>
+                <span className="stat-icon"><Icon name="resource" /></span>
               </div>
 
               <div className="stat-value">
@@ -164,8 +174,10 @@ function Recovery() {
             </div>
 
             {loading ? (
-              <div className="resource-empty">
-                <div>◎</div>
+              <div className="resource-empty recovery-state">
+                <div className="security-state-icon">
+                  <Icon name="identity" />
+                </div>
 
                 <h3>Loading recovery requests</h3>
 
@@ -173,15 +185,34 @@ function Recovery() {
                   Reading Sentinel recovery state.
                 </p>
               </div>
+            ) : error ? (
+              <div className="resource-empty recovery-state recovery-error">
+                <div className="security-state-icon">
+                  <Icon name="shield" />
+                </div>
+
+                <h3>Recovery service unavailable</h3>
+
+                <p>{error}</p>
+
+                <button
+                  type="button"
+                  className="recovery-retry"
+                  onClick={() => window.location.reload()}
+                >
+                  Retry
+                </button>
+              </div>
             ) : requests.length === 0 ? (
-              <div className="resource-empty">
-                <div>✓</div>
+              <div className="resource-empty recovery-state">
+                <div className="security-state-icon">
+                  <Icon name="check" />
+                </div>
 
                 <h3>No active recovery requests</h3>
 
                 <p>
-                  All registered identities are currently
-                  healthy.
+                  All registered identities are currently healthy.
                 </p>
               </div>
             ) : (
@@ -203,7 +234,7 @@ function Recovery() {
                       key={request.request_id}
                     >
                       <div className="recovery-request-icon">
-                        ◎
+                        <Icon name="identity" />
                       </div>
 
                       <div className="recovery-request-main">
