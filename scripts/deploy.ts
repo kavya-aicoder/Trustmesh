@@ -1,10 +1,38 @@
 import { network } from "hardhat";
 import { mkdir, writeFile } from "node:fs/promises";
 import path from "node:path";
+import { fileURLToPath } from "node:url";
 
 const { ethers } = await network.create();
 
-const [deployer] = await ethers.getSigners();
+const repositoryRoot = path.resolve(
+  path.dirname(fileURLToPath(import.meta.url)),
+  ".."
+);
+
+const [deployer, employee, secondAdmin] = await ethers.getSigners();
+
+const organizationId = ethers.keccak256(
+  ethers.toUtf8Bytes("acme-organization")
+);
+const employeeRole = ethers.keccak256(
+  ethers.toUtf8Bytes("EMPLOYEE_ROLE")
+);
+const employeeResource = ethers.keccak256(
+  ethers.toUtf8Bytes("acme-employee-records")
+);
+const adminResource = ethers.keccak256(
+  ethers.toUtf8Bytes("acme-admin-console")
+);
+
+const employeeReadPermission = ethers.solidityPackedKeccak256(
+  ["string", "bytes32"],
+  ["READ", employeeResource]
+);
+const adminActionPermission = ethers.solidityPackedKeccak256(
+  ["string", "bytes32"],
+  ["ADMIN", adminResource]
+);
 
 console.log("========================================");
 console.log("TrustMesh Local Deployment");
@@ -112,6 +140,105 @@ console.log(
   assetNFTAddress
 );
 
+console.log("\nSeeding Acme Organization PolicyEngine state...");
+
+await (
+  await policyEngine.registerOrg(
+    organizationId,
+    deployer.address
+  )
+).wait();
+
+await (
+  await policyEngine.assignRole(
+    organizationId,
+    employee.address,
+    employeeRole
+  )
+).wait();
+
+await (
+  await policyEngine.assignRole(
+    organizationId,
+    secondAdmin.address,
+    await policyEngine.ADMIN_ROLE()
+  )
+).wait();
+
+for (const [resourceId, resourceType] of [
+  [employeeResource, "EMPLOYEE_RECORDS"],
+  [adminResource, "ADMIN_CONSOLE"],
+] as const) {
+  await (
+    await policyEngine.registerResource(
+      organizationId,
+      resourceId,
+      resourceType,
+      ethers.ZeroAddress
+    )
+  ).wait();
+}
+
+await (
+  await policyEngine.definePermission(
+    organizationId,
+    employeeReadPermission,
+    "READ",
+    "EMPLOYEE_RECORDS"
+  )
+).wait();
+
+await (
+  await policyEngine.definePermission(
+    organizationId,
+    adminActionPermission,
+    "ADMIN",
+    "ADMIN_CONSOLE"
+  )
+).wait();
+
+await (
+  await policyEngine.attachPermissionToResource(
+    organizationId,
+    employeeResource,
+    employeeReadPermission
+  )
+).wait();
+
+await (
+  await policyEngine.attachPermissionToResource(
+    organizationId,
+    adminResource,
+    adminActionPermission
+  )
+).wait();
+
+await (
+  await policyEngine.setRolePermission(
+    organizationId,
+    employeeRole,
+    "READ",
+    employeeResource,
+    true
+  )
+).wait();
+
+await (
+  await policyEngine.setRolePermission(
+    organizationId,
+    await policyEngine.ADMIN_ROLE(),
+    "ADMIN",
+    adminResource,
+    true
+  )
+).wait();
+
+console.log("Organization:", "acme-organization");
+console.log("Employee:", employee.address, "role EMPLOYEE_ROLE");
+console.log("Admin:", secondAdmin.address, "role ADMIN_ROLE");
+console.log("Employee Records: READ -> Employee");
+console.log("Admin Console: ADMIN -> Admin");
+
 console.log(
   "\nAuthorizing AssetNFT as an AuditLogger emitter..."
 );
@@ -141,16 +268,22 @@ const deployment = {
   deployedAt: new Date().toISOString(),
 };
 
-const deploymentDir = path.resolve(
-  "deployment"
-);
+const deploymentDir = path.resolve(repositoryRoot, "deployment");
 
-const abiDir = path.resolve(
-  "deployment",
+const abiDir = path.resolve(deploymentDir, "abi");
+const backendAbiDir = path.resolve(
+  repositoryRoot,
+  "backend",
+  "app",
+  "blockchain",
   "abi"
 );
 
 await mkdir(abiDir, {
+  recursive: true,
+});
+
+await mkdir(backendAbiDir, {
   recursive: true,
 });
 
@@ -167,6 +300,24 @@ await writeFile(
   "utf8"
 );
 
+await writeFile(
+  path.join(
+    deploymentDir,
+    "local.env"
+  ),
+  [
+    "TRUSTMESH_LOCAL=true",
+    "TRUSTMESH_RPC_URL=http://127.0.0.1:8545",
+    "TRUSTMESH_CHAIN_ID=31337",
+    `DID_REGISTRY_ADDRESS=${didRegistryAddress}`,
+    `POLICY_ENGINE_ADDRESS=${policyEngineAddress}`,
+    `AUDIT_LOGGER_ADDRESS=${auditLoggerAddress}`,
+    `ASSET_NFT_ADDRESS=${assetNFTAddress}`,
+    "",
+  ].join("\n"),
+  "utf8"
+);
+
 const contracts = [
   "DIDRegistry",
   "PolicyEngine",
@@ -180,23 +331,29 @@ for (const contractName of contracts) {
       contractName
     );
 
-  await writeFile(
-    path.join(
-      abiDir,
-      `${contractName}.json`
+  const artifact = JSON.stringify(
+    {
+      contractName,
+      abi: JSON.parse(
+        contractFactory.interface.formatJson()
+      ),
+    },
+    null,
+    2
+  ) + "\n";
+
+  await Promise.all([
+    writeFile(
+      path.join(abiDir, `${contractName}.json`),
+      artifact,
+      "utf8"
     ),
-    JSON.stringify(
-      {
-        contractName,
-        abi: JSON.parse(
-          contractFactory.interface.formatJson()
-        ),
-      },
-      null,
-      2
-    ) + "\n",
-    "utf8"
-  );
+    writeFile(
+      path.join(backendAbiDir, `${contractName}.json`),
+      artifact,
+      "utf8"
+    ),
+  ]);
 }
 
 console.log("\n========================================");

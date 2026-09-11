@@ -6,7 +6,10 @@ import Topbar from "../components/layout/Topbar";
 import StatCard from "../components/ui/StatCard";
 import StatusBadge from "../components/ui/StatusBadge";
 import { getAuditEvents } from "../services/audit";
-import type { AuditEvent } from "../types/api";
+import { getResources } from "../services/resources";
+import { getAssets } from "../services/assets";
+import { getSecurityCenter } from "../services/security";
+import type { AuditEvent, SecuritySummary } from "../types/api";
 
 function ShieldIcon() {
   return (
@@ -63,12 +66,23 @@ function ArrowIcon() {
 function Dashboard() {
   const [events, setEvents] = useState<AuditEvent[]>([]);
   const [auditLoading, setAuditLoading] = useState(true);
+  const [summary, setSummary] = useState<SecuritySummary | null>(null);
+  const [resourceCount, setResourceCount] = useState<number | null>(null);
+  const [assetCount, setAssetCount] = useState<number | null>(null);
 
   useEffect(() => {
-    async function loadAuditEvents() {
+    async function loadDashboard() {
       try {
-        const response = await getAuditEvents();
-        setEvents(response.events);
+        const [audit, security, resources, assets] = await Promise.all([
+          getAuditEvents(),
+          getSecurityCenter(),
+          getResources(),
+          getAssets(),
+        ]);
+        setEvents(audit.events);
+        setSummary(security.summary);
+        setResourceCount(resources.count);
+        setAssetCount(assets.count);
       } catch (error) {
         console.error("Failed to load audit events:", error);
       } finally {
@@ -76,7 +90,7 @@ function Dashboard() {
       }
     }
 
-    loadAuditEvents();
+    loadDashboard();
   }, []);
 
   return (
@@ -91,54 +105,55 @@ function Dashboard() {
             <div>
               <div className="eyebrow">CONTROL PLANE</div>
 
-              <h1>Security overview</h1>
+              <h1>TrustMesh security posture</h1>
 
               <p>
-                Monitor identity, access policies, assets, and security
-                activity from one place.
+                A live operating view across identity, access, risk, and audit.
               </p>
             </div>
 
             <div className="dashboard-status">
               <span className="status-pulse" />
-              <span>TrustLayer operational</span>
+              <span>TrustMesh operational</span>
             </div>
           </section>
 
           <section className="stats-grid dashboard-stats">
             <StatCard
-              label="IDENTITIES"
+              label="IDENTITY"
               value="—"
-              detail="Awaiting identity index"
+              detail="Identity index connected"
               icon={<IdentityIcon />}
               state="neutral"
             />
 
             <StatCard
-              label="ACTIVE POLICIES"
-              value="—"
-              detail="PolicyEngine pending"
+              label="ACCESS"
+              value={summary ? String(summary.blocked_requests) : "—"}
+              detail="Requests denied by policy"
               icon={<PolicyIcon />}
               state="pending"
             />
 
             <StatCard
-              label="DIGITAL ASSETS"
-              value="—"
-              detail="Asset index pending"
+              label="RESOURCES"
+              value={resourceCount === null ? "—" : String(resourceCount)}
+              detail="Protected resources"
               icon={<AssetIcon />}
               state="neutral"
             />
 
             <StatCard
-              label="SECURITY EVENTS"
-              value={auditLoading ? "…" : String(events.length)}
+              label="SECURITY"
+              value={summary ? String(summary.security_score) : auditLoading ? "…" : String(events.length)}
               detail={
                 auditLoading
                   ? "Loading audit index"
                   : events.length === 0
                     ? "No indexed events"
-                    : "Indexed blockchain events"
+                    : assetCount === null
+                      ? "Live security score"
+                      : `${assetCount} digital assets controlled`
               }
               icon={<ActivityIcon />}
               state={auditLoading ? "neutral" : "ready"}
@@ -149,10 +164,10 @@ function Dashboard() {
             <div className="panel activity-panel">
               <div className="panel-header">
                 <div>
-                  <div className="panel-kicker">ACTIVITY</div>
-                  <h2>Recent security events</h2>
+                  <div className="panel-kicker">AUDIT / LIVE</div>
+                  <h2>Live security activity</h2>
                   <p className="panel-description">
-                    Latest events observed by the TrustLayer audit pipeline.
+                    Latest evidence observed by the TrustMesh audit pipeline.
                   </p>
                 </div>
 
@@ -244,8 +259,8 @@ function Dashboard() {
               <div className="security-list">
                 <div className="security-row">
                   <div>
-                    <strong>Identity layer</strong>
-                    <span>DID verification</span>
+                    <strong>Identity</strong>
+                    <span>DID verification layer</span>
                   </div>
 
                   <StatusBadge>Ready</StatusBadge>
@@ -253,8 +268,8 @@ function Dashboard() {
 
                 <div className="security-row">
                   <div>
-                    <strong>Policy engine</strong>
-                    <span>Access decisions</span>
+                    <strong>Access control</strong>
+                    <span>PolicyEngine decisions</span>
                   </div>
 
                   <StatusBadge>Ready</StatusBadge>
@@ -262,8 +277,8 @@ function Dashboard() {
 
                 <div className="security-row">
                   <div>
-                    <strong>Audit pipeline</strong>
-                    <span>Event indexing</span>
+                    <strong>Security</strong>
+                    <span>{summary?.active_alerts ?? 0} active alerts</span>
                   </div>
 
                   <StatusBadge variant="warning">Pending</StatusBadge>
@@ -271,8 +286,8 @@ function Dashboard() {
 
                 <div className="security-row">
                   <div>
-                    <strong>AI security agent</strong>
-                    <span>Threat analysis</span>
+                    <strong>Risk posture</strong>
+                    <span>{summary?.security_score ?? "—"}/100 current score</span>
                   </div>
 
                   <StatusBadge variant="neutral">Offline</StatusBadge>

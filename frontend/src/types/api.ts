@@ -79,6 +79,9 @@ export interface SecurityEvent {
   resource: string;
   status: string;
   description: string;
+  attack_type: string;
+  action: string;
+  decision: string;
 }
 
 export interface SecuritySummary {
@@ -93,6 +96,37 @@ export interface SecurityResponse {
   status: string;
   summary: SecuritySummary;
   events: SecurityEvent[];
+  incidents?: SecurityIncident[];
+}
+
+export interface SecurityIncident {
+  incident_id: string;
+  identity: string;
+  role: string;
+  attack_type: string;
+  threat_type: string;
+  resource: string;
+  action: string;
+  violations: number;
+  risk_score: number;
+  severity: string;
+  decision: string;
+  suspended: boolean;
+  created_at: string | null;
+  timeline: Array<{ stage: string; timestamp: string }>;
+  evidence: Array<{ event_id: string; event: string; reason: string; synthetic: boolean }>;
+}
+
+export interface SecurityCopilotResponse {
+  status: string;
+  provider: string;
+  incident_id?: string;
+  analysis?: string;
+  what_happened?: string;
+  why_suspicious?: string;
+  evidence?: Array<Record<string, unknown>>;
+  risk_explanation?: string;
+  recommendation: string;
 }
 
 export interface RecoveryRequest {
