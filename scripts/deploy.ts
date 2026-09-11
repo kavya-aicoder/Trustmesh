@@ -175,8 +175,8 @@ const contracts = [
 ];
 
 for (const contractName of contracts) {
-  const artifact =
-    await network.getArtifact(
+  const contractFactory =
+    await ethers.getContractFactory(
       contractName
     );
 
@@ -188,7 +188,9 @@ for (const contractName of contracts) {
     JSON.stringify(
       {
         contractName,
-        abi: artifact.abi,
+        abi: JSON.parse(
+          contractFactory.interface.formatJson()
+        ),
       },
       null,
       2
