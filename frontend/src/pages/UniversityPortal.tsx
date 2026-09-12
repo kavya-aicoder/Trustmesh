@@ -1,5 +1,6 @@
 import { useMemo, useState } from "react";
 
+import ProtectedResource from "../components/security/ProtectedResource";
 import StatusBadge from "../components/ui/StatusBadge";
 import Icon from "../components/ui/Icon";
 import {
@@ -80,8 +81,40 @@ function UniversityPortal() {
     <section className="demo-split-layout"><div className="demo-application-side"><div className="demo-side-heading"><div><span className="demo-side-label">APPLICATION SIDE</span><h2>Acme Organization</h2></div><span className="demo-side-status"><i /> Protected application</span></div>
       <section className={`demo-identity-card ${identity === "Admin" ? "admin" : ""}`}><div className="demo-identity-main"><span className="demo-avatar">{displayIdentity[0]}</span><div><span className="panel-kicker">CURRENT IDENTITY</span><strong>{displayIdentity}</strong><span>{identity} · {simulation?.final.suspended ? "Suspended" : "Active"}</span></div></div><div className="identity-selector" role="group" aria-label="Select current identity"><button type="button" className={identity === "Employee" ? "active" : ""} onClick={() => { setIdentity("Employee"); clearDecisions(); }}>Employee</button><button type="button" className={identity === "Admin" ? "active" : ""} onClick={() => { setIdentity("Admin"); clearDecisions(); }}>Admin</button></div><code>{did}</code></section>
       <div className="demo-section-heading"><div><span className="demo-side-label">PROTECTED RESOURCES</span><h3>Application access</h3></div><button type="button" className="demo-quiet-action" onClick={() => setModal("resource")}>+ Register Resource</button></div>
-      <div className="demo-resource-stack"><article className="demo-resource-card demo-resource-safe"><div className="demo-resource-top"><span className="demo-resource-icon"><Icon name="resource" /></span><StatusBadge variant={resourceAccess?.allowed ? "success" : "neutral"}>{resourceStatus}</StatusBadge></div><span className="panel-kicker">STANDARD RESOURCE</span><h3>Employee Records</h3><p>Profile, team assignments, and organization records.</p><div className="demo-resource-meta"><span>TYPE <b>Organization data</b></span><span>ACCESS <b>READ</b></span><span>POLICY <b>Employee / Admin</b></span></div><button type="button" className="primary-action" onClick={openResource}>Open Employee Records</button>{resourceAccess && <div className={`portal-decision ${resourceAccess.allowed ? "allowed" : "denied"}`}><strong>{resourceAccess.decision}</strong><span>{decisionReason(resourceAccess)}</span></div>}{resourceAccess?.allowed && <div className="portal-protected-content"><strong>Records available</strong><span>Protected content rendered after the live policy decision.</span></div>}</article>
-        <article className="demo-resource-card demo-resource-privileged"><div className="demo-resource-top"><span className="demo-resource-icon"><Icon name="shield" /></span><StatusBadge variant={adminAccess?.allowed ? "success" : "warning"}>{adminAccess ? adminAccess.decision : "PRIVILEGED"}</StatusBadge></div><span className="panel-kicker">ELEVATED RESOURCE</span><h3>Admin Console</h3><p>Identity, policy, and security administration for Acme.</p><div className="demo-resource-meta"><span>TYPE <b>Control plane</b></span><span>REQUIRED <b>ADMIN</b></span><span>GUARD <b>PolicyEngine</b></span></div><button type="button" className="primary-action" onClick={openAdmin}>Open Admin Console</button>{adminAccess && <div className={`portal-decision ${adminAccess.allowed ? "allowed" : "denied"}`}><strong>{adminAccess.decision}</strong><span>{decisionReason(adminAccess)}</span></div>}{adminAccess?.allowed && <div className="portal-protected-content"><strong>Admin console available</strong><span>Elevated access granted by the active policy.</span></div>}</article></div><div className="demo-application-footer"><span>External application boundary</span><span>Decisions are enforced outside this UI</span></div>
+      <div className="demo-resource-stack"><article className="demo-resource-card demo-resource-safe"><div className="demo-resource-top"><span className="demo-resource-icon"><Icon name="resource" /></span><StatusBadge variant={resourceAccess?.allowed ? "success" : "neutral"}>{resourceStatus}</StatusBadge></div><span className="panel-kicker">STANDARD RESOURCE</span><h3>Employee Records</h3><p>Profile, team assignments, and organization records.</p><div className="demo-resource-meta"><span>TYPE <b>Organization data</b></span><span>ACCESS <b>READ</b></span><span>POLICY <b>Employee / Admin</b></span></div><button type="button" className="primary-action" onClick={openResource}>Open Employee Records</button>{resourceAccess && <div className={`portal-decision ${resourceAccess.allowed ? "allowed" : "denied"}`}><strong>{resourceAccess.decision}</strong><span>{decisionReason(resourceAccess)}</span></div>}
+      
+      <ProtectedResource
+        orgId="acme-organization"
+        did={did}
+        resourceId="acme-employee-records"
+        action="READ">
+        <div className="portal-protected-content">
+          <strong>Records available</strong>
+          <span>
+            Protected content rendered after the TrustMesh SDK
+            authorization decision.
+          </span>
+        </div>
+      </ProtectedResource>
+
+      </article>
+        <article className="demo-resource-card demo-resource-privileged"><div className="demo-resource-top"><span className="demo-resource-icon"><Icon name="shield" /></span><StatusBadge variant={adminAccess?.allowed ? "success" : "warning"}>{adminAccess ? adminAccess.decision : "PRIVILEGED"}</StatusBadge></div><span className="panel-kicker">ELEVATED RESOURCE</span><h3>Admin Console</h3><p>Identity, policy, and security administration for Acme.</p><div className="demo-resource-meta"><span>TYPE <b>Control plane</b></span><span>REQUIRED <b>ADMIN</b></span><span>GUARD <b>PolicyEngine</b></span></div><button type="button" className="primary-action" onClick={openAdmin}>Open Admin Console</button>{adminAccess && <div className={`portal-decision ${adminAccess.allowed ? "allowed" : "denied"}`}><strong>{adminAccess.decision}</strong><span>{decisionReason(adminAccess)}</span></div>}
+
+      <ProtectedResource
+        orgId="acme-organization"
+        did={did}
+        resourceId="acme-admin-console"
+        action="ADMIN">
+        <div className="portal-protected-content">
+          <strong>Admin console available</strong>
+          <span>
+            Elevated access granted by the active TrustMesh
+            policy.
+          </span>
+        </div>
+      </ProtectedResource>
+
+      </article></div><div className="demo-application-footer"><span>External application boundary</span><span>Decisions are enforced outside this UI</span></div>
     </div><aside className="demo-attack-side"><div className="demo-side-heading"><div><span className="demo-side-label">DEFENDER / ATTACK SIDE</span><h2>TrustMesh Attack Simulator</h2></div><span className="demo-danger-status"><i /> Controlled</span></div><p className="demo-attack-subtitle">Controlled security demonstration · target identity is always Employee.</p><div className="demo-attack-target"><div><span>TARGET IDENTITY</span><strong>Employee</strong></div><div><span>TARGET RESOURCE</span><strong>Admin Console</strong></div><div><span>ATTACK TYPE</span><strong>Privilege probing</strong></div></div><label className="demo-intensity-label">ATTACK INTENSITY<select value={intensity} onChange={(event) => setIntensity(event.target.value)}><option>Low</option><option>Medium</option><option>High</option></select></label><button type="button" className="attack-action demo-primary-attack" onClick={runSimulation} disabled={loading}><Icon name="shield" />{loading ? "Running live sequence..." : "Start Attack Simulation"}</button><div className="demo-secondary-actions"><button type="button" className="attack-action" onClick={denyOnce} disabled={loading}>Simulate Single Denial</button><button type="button" className="demo-reset-action" onClick={clearDecisions}>Reset View</button></div>
       <div className="demo-feed"><div className="demo-feed-heading"><span>LIVE ATTACK FEED</span><b>{attempts.length ? `${attempts.length} requests` : "Standby"}</b></div>{attempts.length === 0 ? <div className="demo-feed-empty">No attack evidence yet. Start the controlled sequence to stream real denial events.</div> : attempts.map((attempt, index) => <div className="demo-feed-event" key={attempt.event_id}><span className="demo-feed-index">REQUEST #{String(index + 1).padStart(2, "0")}</span><strong>Employee → Admin Console</strong><b>DENIED</b><small>{index > 0 ? "Repeated violation" : "Policy violation"} · {attempt.severity} · risk {attempt.risk_score ?? 0}/100</small></div>)}</div></aside></section>
     <section className="demo-lab-panel"><div className="demo-panel-heading"><div><span className="demo-side-label">SECURITY PIPELINE</span><h2>Attack progression</h2></div><span>Real workflow state</span></div><AttackStepper attempts={attempts} /></section>

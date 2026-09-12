@@ -54,17 +54,45 @@ def test_simulation_creates_incident_graph_and_copilot_evidence():
     assert result["final"]["suspended"] is True
 
     incidents = workflow.list_incidents()
+
     assert incidents
-    assert incidents[-1]["timeline"]
-    assert incidents[-1]["evidence"][0]["synthetic"] is True
+    assert incidents[0]["timeline"]
+    assert incidents[0]["evidence"]
+    assert incidents[0]["evidence"][0]["synthetic"] is True
 
     graph = workflow.graph()
+
     assert graph["count"]["nodes"] > 0
     assert graph["count"]["links"] > 0
 
     copilot = workflow.copilot()
-    assert copilot["provider"] == "deterministic-fallback"
+
+    assert copilot["status"] == "ready"
+    assert copilot["provider"] == "deterministic-security-analysis"
     assert copilot["incident_id"] == incidents[0]["incident_id"]
+
+    assert copilot["what_happened"]
+    assert copilot["why_suspicious"]
+    assert copilot["risk_explanation"]
+    assert copilot["recommendation"]
+
+    assert copilot["evidence"] == incidents[0]["evidence"]
+
+    assert incidents[0]["identity"] in copilot["what_happened"]
+    assert incidents[0]["resource"] in copilot["what_happened"]
+    assert str(incidents[0]["risk_score"]) in copilot["risk_explanation"]
+    assert incidents[0]["severity"] in copilot["risk_explanation"]
+
+
+def test_copilot_without_incident_returns_clean_empty_state():
+    workflow = SecurityWorkflowService(event_sink=lambda event: None)
+
+    copilot = workflow.copilot()
+
+    assert copilot["status"] == "ready"
+    assert copilot["provider"] == "deterministic-security-analysis"
+    assert copilot["incident_id"] is None
+    assert copilot["evidence"] == []
     assert copilot["recommendation"]
 
 

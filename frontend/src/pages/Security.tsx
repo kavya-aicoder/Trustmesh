@@ -32,6 +32,39 @@ function SecurityMetric({ label, value, detail, tone = "neutral" }: { label: str
   return <article className={`security-metric security-metric-${tone}`}><span className="security-metric-label">{label}</span><strong>{value}</strong><span>{detail}</span></article>;
 }
 
+function AttackTimeMetric({
+  incident,
+}: {
+  incident: SecurityIncident | null;
+}) {
+  if (!incident) {
+    return (
+      <SecurityMetric
+        label="ATTACK-TIME"
+        value="—"
+        detail="Awaiting incident evidence"
+        tone="neutral"
+      />
+    );
+  }
+
+  const latency =
+    incident.response_metrics?.attack_to_restriction_ms ?? 0;
+
+  return (
+    <SecurityMetric
+      label="ATTACK-TIME"
+      value={`${latency} ms`}
+      detail={
+        incident.suspended
+          ? "Attack to suspension"
+          : "Attack to adaptive restriction"
+      }
+      tone={latency <= 100 ? "success" : "warning"}
+    />
+  );
+}
+
 function BehavioralAnalysis({ incident }: { incident: SecurityIncident | null }) {
   if (!incident) {
     return <div className="behavior-empty"><Icon name="database" /><div><strong>Behavioral baseline awaiting evidence</strong><span>Run the controlled Acme simulation to correlate requests, violations, and adaptive response.</span></div></div>;
@@ -95,7 +128,18 @@ function Security() {
   return <div className="app-shell"><Sidebar /><div className="main-area"><Topbar /><main className="dashboard security-page">
     <section className="page-heading security-hero-heading"><div><div className="eyebrow">SECURITY OPERATIONS / LIVE</div><h1>Security Center</h1><p>Identity behavior, policy decisions, and adaptive response in one operational view.</p></div><div className="live-status"><span className="status-pulse" /> Live telemetry · refreshes every 8s</div></section>
     {error && <div className="security-load-error" role="alert"><Icon name="shield" /><span>{error}</span></div>}
-    <section className="security-posture-grid"><article className="posture-score"><span className="security-metric-label">SECURITY POSTURE</span><strong>{loading ? "—" : summary?.security_score ?? 0}<small>/100</small></strong><div className="posture-meter"><span style={{ width: `${summary?.security_score ?? 0}%` }} /></div><span>{(summary?.security_score ?? 0) >= 80 ? "Operational confidence" : "Review required"}</span></article><SecurityMetric label="ACTIVE INCIDENTS" value={loading ? "—" : incidents.length} detail="Open response records" tone={incidents.length ? "danger" : "success"} /><SecurityMetric label="SUSPENDED IDENTITIES" value={loading ? "—" : incidents.filter((incident) => incident.suspended).length} detail="Adaptive restrictions" tone="warning" /><SecurityMetric label="RECENT VIOLATIONS" value={loading ? "—" : summary?.blocked_requests ?? 0} detail="Denied by policy" tone="info" /></section>
+    <section className="security-posture-grid">
+      <article className="posture-score">
+        <span className="security-metric-label">SECURITY POSTURE</span>
+        <strong>{loading ? "—" : summary?.security_score ?? 0}<small>/100</small></strong>
+        <div className="posture-meter"><span style={{ width: `${summary?.security_score ?? 0}%` }} /></div>
+        <span>{(summary?.security_score ?? 0) >= 80 ? "Operational confidence" : "Review required"}</span>
+      </article>
+      <SecurityMetric label="ACTIVE INCIDENTS" value={loading ? "—" : incidents.length} detail="Open response records" tone={incidents.length ? "danger" : "success"} />
+      <SecurityMetric label="SUSPENDED IDENTITIES" value={loading ? "—" : incidents.filter((incident) => incident.suspended).length} detail="Adaptive restrictions" tone="warning" />
+      <SecurityMetric label="RECENT VIOLATIONS" value={loading ? "—" : summary?.blocked_requests ?? 0} detail="Denied by policy" tone="info" />
+      <AttackTimeMetric incident={latestIncident} />
+    </section>
     <section className="security-main-grid"><article className="panel security-panel activity-command-panel"><div className="panel-header"><div><div className="panel-kicker">LIVE SECURITY ACTIVITY</div><h2>What is happening now</h2></div><StatusBadge>{`${events.length} events`}</StatusBadge></div>{events.length === 0 ? <div className="resource-empty"><div className="security-state-icon"><Icon name="database" /></div><h3>No active security events</h3><p>Policy and audit telemetry will appear here as it is indexed.</p></div> : <div className="activity-command-list">{events.slice(0, 8).map((event) => <div className="command-event" key={event.event_id}><span className={`command-event-dot ${event.severity.toLowerCase()}`} /><div><strong>{event.event_type}</strong><span>{event.description}</span></div><div className="command-event-meta"><b>{event.decision}</b><small>{event.status}</small></div></div>)}</div>}</article><article className="panel security-panel copilot-panel"><div className="panel-header"><div><div className="panel-kicker">AI SECURITY</div><h2>Threat assessment</h2></div><StatusBadge>{copilot?.provider ?? "Loading"}</StatusBadge></div><div className="copilot-assessment"><span className="copilot-label">CURRENT THREAT</span><strong>{copilot?.what_happened ?? "No current threat assessment"}</strong><span className="copilot-label">WHY IT MATTERS</span><p>{copilot?.why_suspicious ?? "The analyst will explain suspicious behavior when evidence is available."}</p><div className="copilot-risk"><span>RISK ASSESSMENT</span><strong>{copilot?.risk_explanation ?? "No risk evidence"}</strong></div><div className="copilot-recommendation"><span>RECOMMENDED ACTION</span><strong>{copilot?.recommendation ?? "Continue monitoring"}</strong></div></div></article></section>
     <section className="panel security-panel behavioral-panel"><div className="panel-header"><div><div className="panel-kicker">BEHAVIORAL ANALYSIS</div><h2>Identity behavior, not isolated failures</h2><p className="panel-description">Signals are derived from the current workflow incident and indexed security events.</p></div><StatusBadge>{latestIncident ? `${latestIncident.violations} violations` : "Awaiting evidence"}</StatusBadge></div><BehavioralAnalysis incident={latestIncident} /></section>
     <section className="panel security-panel"><div className="panel-header"><div><div className="panel-kicker">RESPONSE PIPELINE</div><h2>Attack to administrative alert</h2></div><StatusBadge>{latestIncident?.suspended ? "Identity suspended" : "Monitoring"}</StatusBadge></div><IncidentPipeline incident={latestIncident} /></section>
